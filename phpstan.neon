@@ -1,0 +1,14 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 7
+    paths:
+        - config
+        - app
+        - tests
+    parallel:
+        maximumNumberOfProcesses: 10
+    bootstrapFiles:
+        - vendor/autoload.php
+    tmpDir: var/phpstan

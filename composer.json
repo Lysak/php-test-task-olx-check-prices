@@ -1,0 +1,138 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "laravel/laravel",
+    "type": "project",
+    "description": "The skeleton application for the Laravel framework.",
+    "keywords": [
+        "laravel",
+        "framework"
+    ],
+    "license": "MIT",
+    "require": {
+        "php": "^8.5",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "laravel/framework": "^13.0",
+        "laravel/tinker": "^3.0",
+        "guzzlehttp/guzzle": "^7.9",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.0",
+        "psr/http-message": "^1.0 || ^2.0",
+        "psr/log": "^3.0",
+        "symfony/http-foundation": "^8.0"
+    },
+    "require-dev": {
+        "fakerphp/faker": "^1.23",
+        "fruitcake/laravel-debugbar": "^4.2",
+        "larastan/larastan": "^3.9",
+        "laravel/boost": "^2.2",
+        "laravel/pail": "^1.2.5",
+        "laravel/pint": "^1.29",
+        "mockery/mockery": "^1.6",
+        "nunomaduro/collision": "^8.6",
+        "phpmd/phpmd": "^3.x-dev",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^13",
+        "povils/phpmnd": "^3.6",
+        "psalm/plugin-laravel": "^4.8",
+        "rector/rector": "^2.4",
+        "roave/security-advisories": "dev-latest",
+        "vimeo/psalm": "^7.0.0-beta"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Dmytrii Lysak",
+            "email": "dmytrii.lysak@gmail.com"
+        }
+    ],
+    "scripts": {
+        "setup": [
+            "composer install",
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
+            "@php artisan key:generate",
+            "@php artisan migrate --force",
+            "npm install --ignore-scripts",
+            "npm run build"
+        ],
+        "dev": [
+            "Composer\\Config::disableProcessTimeout",
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
+        ],
+        "test": [
+            "@php artisan config:clear --ansi",
+            "@php artisan test"
+        ],
+        "test-coverage": [
+            "@php artisan config:clear --ansi",
+            "@putenv XDEBUG_MODE=coverage",
+            "@php artisan test --coverage"
+        ],
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
+            "@php artisan boost:update --ansi"
+        ],
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "post-create-project-cmd": [
+            "@php artisan key:generate --ansi",
+            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
+            "@php artisan migrate --graceful --ansi"
+        ],
+        "pre-package-uninstall": [
+            "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "quality": [
+            "@rector-check",
+            "@pint-check",
+            "@analyze",
+            "@mess",
+            "@mnd"
+        ],
+        "fix": [
+            "@rector-fix",
+            "@pint-fix"
+        ],
+        "rector-check": "vendor/bin/rector process --dry-run",
+        "pint-check": "php -d memory_limit=-1 vendor/bin/pint --dirty --parallel",
+        "analyze": "php -d memory_limit=-1 vendor/bin/phpstan analyse --error-format=table --no-progress",
+        "mess": "vendor/bin/phpmd analyze app --format=text --ruleset=phpmd.xml && printf '\n[PASS] PHPMD completed successfully. No rule violations found.\n'",
+        "rector-fix": "vendor/bin/rector process",
+        "pint-fix": "php -d memory_limit=-1 vendor/bin/pint --parallel",
+        "psalm-fix": "./vendor/bin/psalm --alter --issues=MissingReturnType,MissingParamType,MissingImmutableAnnotation --no-cache --force-jit",
+        "psalm-check-taint-analysis": "./vendor/bin/psalm --no-cache --taint-analysis --force-jit",
+        "mnd": "vendor/bin/phpmnd app/ tests/ --progress --strings"
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
