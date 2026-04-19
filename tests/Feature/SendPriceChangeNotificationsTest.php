@@ -9,11 +9,19 @@ use App\Models\Listing;
 use App\Models\Subscription;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 class SendPriceChangeNotificationsTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    public function test_price_changed_event_is_listened_by_price_change_notifications_listener(): void
+    {
+        Event::fake();
+
+        Event::assertListening(PriceChanged::class, SendPriceChangeNotifications::class);
+    }
 
     public function test_dispatches_one_job_for_single_verified_subscriber(): void
     {

@@ -77,7 +77,8 @@ POST /subscribe → SubscriptionService
   ├─ Subscription::firstOrCreate (listing_id + email + token)
   └─ якщо нова: queue(VerificationMail)
 
-GET /verify/{token} → verified_at = now() → підписка активна
+GET /verify/{token}     → verified_at = now() → підписка активна
+GET /unsubscribe/{token} → subscription.delete() → підписка видалена
 
 ─────────────────────────────────────────────────────────
 
@@ -160,6 +161,7 @@ Scope `active`: `whereNull('deactivated_at')`
 ```php
 Route::post('/subscribe', [SubscriptionController::class, 'subscribe']);
 Route::get('/verify/{token}', [SubscriptionController::class, 'verify']);
+Route::get('/unsubscribe/{token}', [SubscriptionController::class, 'unsubscribe']);
 Route::middleware('app.local')->get('/test/subscribe', [TestController::class, 'subscribe']);
 ```
 
@@ -194,8 +196,11 @@ ListingUnavailable::class → SendListingUnavailableNotifications
 |---|---|---|
 | `OlxScraperServiceTest` | Unit | парсинг, null без ld+json, null при HTTP-помилці |
 | `PriceCheckerServiceTest` | Unit | перша ціна без події, зміна → подія, failures → деактивація |
-| `SubscriptionServiceTest` | Feature | subscribe, дублікати, verify |
-| `SubscriptionControllerTest` | Feature | валідація POST /subscribe, GET /verify |
+| `SubscriptionServiceTest` | Feature | subscribe, дублікати, verify, unsubscribe |
+| `SubscriptionControllerTest` | Feature | валідація POST /subscribe, GET /verify, GET /unsubscribe |
 | `CheckPricesCommandTest` | Feature | без підписок, з підписками → check викликається |
 | `SendPriceChangeNotificationsTest` | Feature | N підписників → N jobs, 0 верифікованих → 0 jobs |
 | `SendListingUnavailableNotificationsTest` | Feature | jobs dispatched + підписки видалені |
+
+Провірите, чи кожен ключ з .env використовується у коді.
+$subscription = $this->subscription->where(['token' => $token, 'verified_at' => null])->firstOrFail(); -- how to fix this with linters?

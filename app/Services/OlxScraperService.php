@@ -6,6 +6,8 @@ namespace App\Services;
 
 use App\Contracts\PriceScraperInterface;
 use App\Exceptions\RequestFailedException;
+use App\Support\RateLimiterKey;
+use Illuminate\Cache\RateLimiter;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -19,10 +21,14 @@ final readonly class OlxScraperService implements PriceScraperInterface
         private ClientInterface $httpClient,
         private RequestFactoryInterface $requestFactory,
         private LoggerInterface $logger,
+        private RateLimiter $rateLimiter,
+        private int $rateLimitPerMinute,
     ) {}
 
     public function fetchPrice(string $url): ?float
     {
+        $this->throttle();
+
         try {
             $request = $this->requestFactory
                 ->createRequest(Request::METHOD_GET, $url)
@@ -50,6 +56,15 @@ final readonly class OlxScraperService implements PriceScraperInterface
             $this->logger->error('OLX scraper HTTP error', ['url' => $url, 'error' => $e->getMessage()]);
 
             return null;
+        }
+    }
+
+    private function throttle(): void
+    {
+        usleep((int) (60_000_000 * 0.9 / $this->rateLimitPerMinute));
+
+        while (! $this->rateLimiter->attempt(RateLimiterKey::OLX, $this->rateLimitPerMinute, static fn () => true)) {
+            sleep(max(1, $this->rateLimiter->availableIn(RateLimiterKey::OLX)));
         }
     }
 

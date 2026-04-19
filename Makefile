@@ -19,11 +19,11 @@ ps:
 	docker-compose -f docker/docker-compose.yml --env-file ./.env -p php-test-task-olx-check-prices ps
 
 restart:
-	docker compose -f docker/docker-compose.yml --env-file ./.env -p php-test-task-olx-check-prices up -d
+	docker-compose -f docker/docker-compose.yml --env-file ./.env -p php-test-task-olx-check-prices restart
 
-refresh: down build up logs
-
-refresh-purge: down-purge remove-network build up logs
+#refresh: down build up logs
+#
+#refresh-purge: down-purge remove-network build up logs
 
 frontend-dev:
 	pnpm install && pnpm run build && pnpm run dev
@@ -52,7 +52,7 @@ test-filter:
 	docker-compose -f docker/docker-compose.yml --env-file ./.env -p php-test-task-olx-check-prices exec app php artisan test --filter=$(filter-out $@,$(MAKECMDGOALS))
 
 build-webserver:
-	docker compose -f docker/docker-compose.yml --env-file ./.env -p php-test-task-olx-check-prices up -d --build webserver
+	docker-compose -f docker/docker-compose.yml --env-file ./.env -p php-test-task-olx-check-prices up -d --build webserver
 
 %:
 	@:

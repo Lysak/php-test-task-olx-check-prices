@@ -2,30 +2,26 @@
 
 namespace Tests\Feature;
 
-use App\Contracts\PriceScraperInterface;
+use App\Events\SubscriptionVerified;
+use App\Jobs\SendUnsubscribedMail;
 use App\Mail\VerificationMail;
+use App\Models\Listing;
 use App\Models\Subscription;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
-use Mockery\Expectation;
-use Mockery\MockInterface;
 use Tests\TestCase;
 
 class SubscriptionControllerTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    private PriceScraperInterface&MockInterface $scraper;
-
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->withoutMiddleware();
-        $this->scraper = $this->mock(PriceScraperInterface::class);
-        /** @var Expectation $expectation */
-        $expectation = $this->scraper->shouldReceive('fetchPrice');
-        $expectation->andReturn(1500.0)->byDefault();
         Mail::fake();
     }
 
@@ -80,18 +76,42 @@ class SubscriptionControllerTest extends TestCase
 
     public function test_verify_returns_200_for_valid_token(): void
     {
-        $subscription = Subscription::factory()->create();
+        Event::fake();
+
+        $listing = Listing::factory()->unchecked()->create();
+        $subscription = Subscription::factory()->create(['listing_id' => $listing->id]);
 
         $this->getJson("/verify/{$subscription->token}")
             ->assertOk()
             ->assertJsonStructure(['message']);
 
         $this->assertNotNull($subscription->fresh()->verified_at);
+        Event::assertDispatched(SubscriptionVerified::class);
     }
 
     public function test_verify_returns_404_for_invalid_token(): void
     {
         $this->getJson('/verify/invalid-token-that-does-not-exist')
+            ->assertNotFound();
+    }
+
+    public function test_unsubscribe_returns_200_and_soft_deletes_subscription(): void
+    {
+        Bus::fake();
+
+        $subscription = Subscription::factory()->verified()->create();
+
+        $this->getJson("/unsubscribe/{$subscription->token}")
+            ->assertOk()
+            ->assertJsonStructure(['message']);
+
+        $this->assertSoftDeleted($subscription);
+        Bus::assertDispatched(SendUnsubscribedMail::class, static fn (SendUnsubscribedMail $job): bool => $job->email === $subscription->email);
+    }
+
+    public function test_unsubscribe_returns_404_for_invalid_token(): void
+    {
+        $this->getJson('/unsubscribe/invalid-token-that-does-not-exist')
             ->assertNotFound();
     }
 }

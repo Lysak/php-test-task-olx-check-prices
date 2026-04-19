@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Mail\ListingUnavailableMail;
 use App\Models\Listing;
 use App\Models\Subscription;
+use App\Support\RateLimiterKey;
 use DateTimeInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -30,7 +31,7 @@ final class SendListingUnavailableMail implements ShouldQueue
     /** @return array<int, object> */
     public function middleware(): array
     {
-        return [new RateLimited('mail')];
+        return [new RateLimited(RateLimiterKey::MAIL)];
     }
 
     public function handle(): void

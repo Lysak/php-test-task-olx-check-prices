@@ -16,13 +16,7 @@ use Illuminate\Console\Command;
 #[Description('Check OLX listing prices for all actively subscribed listings')]
 class CheckPricesCommand extends Command
 {
-    public function __construct(
-        private readonly PriceCheckerService $priceCheckerService,
-    ) {
-        parent::__construct();
-    }
-
-    public function handle(): int
+    public function handle(PriceCheckerService $priceCheckerService): int
     {
         $listings = Listing::active()->whereHas(
             'subscriptions',
@@ -37,8 +31,8 @@ class CheckPricesCommand extends Command
 
         $this->info("Checking prices for {$listings->count()} listing(s)...");
 
-        $listings->each(function (Listing $listing): void {
-            $this->priceCheckerService->check($listing);
+        $listings->each(static function (Listing $listing) use ($priceCheckerService): void {
+            $priceCheckerService->check($listing);
         });
 
         $this->info('Done.');

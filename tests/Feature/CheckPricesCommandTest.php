@@ -3,11 +3,9 @@
 namespace Tests\Feature;
 
 use App\Contracts\PriceScraperInterface;
-use App\Events\PriceChanged;
 use App\Models\Listing;
 use App\Models\Subscription;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Testing\PendingCommand;
 use Mockery\Expectation;
 use Mockery\MockInterface;
@@ -45,13 +43,27 @@ class CheckPricesCommandTest extends TestCase
         $expectation = $this->scraper->shouldReceive('fetchPrice');
         $expectation->times(3)->andReturn(1200.0);
 
-        Event::fake();
+        /** @var PendingCommand $command */
+        $command = $this->artisan('prices:check');
+        $command->expectsOutput('Checking prices for 3 listing(s)...')
+            ->expectsOutput('Done.')
+            ->assertSuccessful();
+    }
+
+    public function test_checks_newly_created_listings_with_verified_subscriptions(): void
+    {
+        $listings = Listing::factory()->unchecked()->count(3)->create();
+        $listings->each(static fn (Listing $listing): Subscription => Subscription::factory()->verified()->create(['listing_id' => $listing->id]));
+
+        /** @var Expectation $expectation */
+        $expectation = $this->scraper->shouldReceive('fetchPrice');
+        $expectation->times(3)->andReturn(1200.0);
 
         /** @var PendingCommand $command */
         $command = $this->artisan('prices:check');
-        $command->assertSuccessful();
-
-        Event::assertDispatched(PriceChanged::class, 3);
+        $command->expectsOutput('Checking prices for 3 listing(s)...')
+            ->expectsOutput('Done.')
+            ->assertSuccessful();
     }
 
     public function test_skips_deactivated_listings(): void

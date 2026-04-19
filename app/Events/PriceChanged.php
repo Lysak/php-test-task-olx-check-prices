@@ -8,7 +8,7 @@ final readonly class PriceChanged
 {
     public function __construct(
         public Listing $listing,
-        public float $oldPrice,
+        public ?float $oldPrice,
         public float $newPrice,
     ) {}
 }

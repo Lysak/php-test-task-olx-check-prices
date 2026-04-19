@@ -33,19 +33,25 @@ class PriceCheckerServiceTest extends TestCase
         );
     }
 
-    public function test_stores_first_price_without_firing_event(): void
+    public function test_stores_first_price_and_fires_event_with_null_old_price(): void
     {
+        $newPrice = 1500.0;
+
         $listing = Listing::factory()->unchecked()->create();
         /** @var Expectation $expectation */
         $expectation = $this->scraper->shouldReceive('fetchPrice');
-        $expectation->once()->andReturn(1500.0);
+        $expectation->once()->andReturn($newPrice);
 
         Event::fake();
 
         $this->service->check($listing);
 
-        Event::assertNotDispatched(PriceChanged::class);
-        $this->assertSame(1500.0, (float) $listing->fresh()->current_price);
+        Event::assertDispatched(PriceChanged::class, static function (PriceChanged $event) use ($listing, $newPrice): bool {
+            return $event->listing->id === $listing->id
+                && $event->oldPrice === null
+                && $event->newPrice === $newPrice;
+        });
+        $this->assertSame($newPrice, $listing->fresh()->current_price);
         $this->assertCount(1, $listing->priceHistories);
     }
 

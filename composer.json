@@ -18,8 +18,7 @@
         "psr/http-client": "^1.0",
         "psr/http-factory": "^1.0",
         "psr/http-message": "^1.0 || ^2.0",
-        "psr/log": "^3.0",
-        "symfony/http-foundation": "^8.0"
+        "psr/log": "^3.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -117,7 +116,7 @@
         "pint-fix": "php -d memory_limit=-1 vendor/bin/pint --parallel",
         "psalm-fix": "./vendor/bin/psalm --alter --issues=MissingReturnType,MissingParamType,MissingImmutableAnnotation --no-cache --force-jit",
         "psalm-check-taint-analysis": "./vendor/bin/psalm --no-cache --taint-analysis --force-jit",
-        "mnd": "vendor/bin/phpmnd app/ tests/ --progress --strings"
+        "mnd": "vendor/bin/phpmnd app/ tests/ --progress --strings --hint"
     },
     "extra": {
         "laravel": {
