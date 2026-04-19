@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\ListingFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,7 +14,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $url
  * @property string|null $title
- * @property numeric-string|null $current_price
+ * @property-read float|null $current_price
  * @property Carbon|null $last_checked_at
  * @property int $consecutive_failures
  * @property Carbon|null $deactivated_at
@@ -40,7 +41,8 @@ class Listing extends Model
     protected function casts(): array
     {
         return [
-            'current_price' => 'decimal:2',
+            // decimal:2 returns string; float cast is overridden by the accessor below to guarantee float precision
+            'current_price' => 'float',
             'last_checked_at' => 'datetime',
             'deactivated_at' => 'datetime',
         ];
@@ -68,5 +70,23 @@ class Listing extends Model
     public function priceHistories(): HasMany
     {
         return $this->hasMany(PriceHistory::class);
+    }
+
+    /**
+     * Laravel's built-in casts don't provide a float rounded to N decimal places.
+     * decimal:2 returns a string; float cast doesn't round. This accessor ensures
+     * price comparisons (===) work correctly without floating-point drift.
+     *
+     * @noinspection PhpUnused
+     *
+     * @return Attribute<float|null, never>
+     */
+    protected function currentPrice(): Attribute
+    {
+        return Attribute::make(
+            get: static fn ($value): ?float => $value !== null
+                ? round((float) $value, 2)
+                : null,
+        );
     }
 }

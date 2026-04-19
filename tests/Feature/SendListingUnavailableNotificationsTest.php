@@ -37,7 +37,7 @@ class SendListingUnavailableNotificationsTest extends TestCase
         (new SendListingUnavailableNotifications)->handle(new ListingUnavailable($listing));
 
         foreach ($verified as $subscription) {
-            $this->assertModelMissing($subscription);
+            $this->assertSoftDeleted($subscription);
         }
     }
 

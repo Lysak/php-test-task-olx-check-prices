@@ -2,9 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Mail\PriceChangedMail;
-use App\Models\Listing;
-use App\Models\Subscription;
+use App\Mail\UnsubscribedMail;
 use App\Support\RateLimiterKey;
 use DateTimeInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,18 +10,13 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Support\Facades\Mail;
 
-final class SendPriceChangeMail implements ShouldQueue
+final class SendUnsubscribedMail implements ShouldQueue
 {
     use Queueable;
 
     public int $tries = 0;
 
-    public function __construct(
-        public readonly Subscription $subscription,
-        public readonly Listing $listing,
-        public readonly ?float $oldPrice,
-        public readonly float $newPrice,
-    ) {}
+    public function __construct(public readonly string $email) {}
 
     public function retryUntil(): DateTimeInterface
     {
@@ -38,7 +31,6 @@ final class SendPriceChangeMail implements ShouldQueue
 
     public function handle(): void
     {
-        Mail::to($this->subscription->email)
-            ->send(new PriceChangedMail($this->listing, $this->oldPrice, $this->newPrice, $this->subscription));
+        Mail::to($this->email)->send(new UnsubscribedMail);
     }
 }

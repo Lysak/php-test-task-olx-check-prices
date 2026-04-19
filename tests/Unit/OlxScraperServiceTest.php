@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\OlxScraperService;
+use Illuminate\Cache\RateLimiter;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientExceptionInterface;
@@ -30,11 +31,15 @@ class OlxScraperServiceTest extends TestCase
         $this->httpClient = $this->createMock(ClientInterface::class);
         $this->requestFactory = $this->createMock(RequestFactoryInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
+        $rateLimiter = $this->createMock(RateLimiter::class);
+        $rateLimiter->method('attempt')->willReturn(true);
 
         $this->service = new OlxScraperService(
             $this->httpClient,
             $this->requestFactory,
             $this->logger,
+            $rateLimiter,
+            \PHP_INT_MAX, // eliminates usleep delay in tests
         );
     }
 
@@ -105,6 +110,7 @@ class OlxScraperServiceTest extends TestCase
         $body->method('getContents')->willReturn($html);
 
         $response = $this->createMock(ResponseInterface::class);
+        $response->method('getStatusCode')->willReturn(200);
         $response->method('getBody')->willReturn($body);
 
         $this->requestFactory->method('createRequest')->willReturn($request);

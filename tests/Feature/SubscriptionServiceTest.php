@@ -2,23 +2,22 @@
 
 namespace Tests\Feature;
 
-use App\Contracts\PriceScraperInterface;
+use App\Events\SubscriptionVerified;
+use App\Jobs\SendUnsubscribedMail;
 use App\Mail\VerificationMail;
 use App\Models\Listing;
 use App\Models\Subscription;
 use App\Services\SubscriptionService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
-use Mockery\Expectation;
-use Mockery\MockInterface;
 use Tests\TestCase;
 
 class SubscriptionServiceTest extends TestCase
 {
     use LazilyRefreshDatabase;
-
-    private PriceScraperInterface&MockInterface $scraper;
 
     private SubscriptionService $service;
 
@@ -26,15 +25,11 @@ class SubscriptionServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->scraper = $this->mock(PriceScraperInterface::class);
         $this->service = $this->app->make(SubscriptionService::class);
     }
 
     public function test_subscribe_creates_listing_and_subscription_for_new_url(): void
     {
-        /** @var Expectation $expectation */
-        $expectation = $this->scraper->shouldReceive('fetchPrice');
-        $expectation->once()->andReturn(1500.0);
         Mail::fake();
 
         $subscription = $this->service->subscribe('https://www.olx.ua/new-ad', 'user@example.com');
@@ -44,33 +39,18 @@ class SubscriptionServiceTest extends TestCase
         $this->assertSame('user@example.com', $subscription->email);
     }
 
-    public function test_subscribe_fetches_price_for_new_listing(): void
+    public function test_subscribe_creates_listing_without_price(): void
     {
-        /** @var Expectation $expectation */
-        $expectation = $this->scraper->shouldReceive('fetchPrice');
-        $expectation->once()->andReturn(1500.0);
         Mail::fake();
 
         $this->service->subscribe('https://www.olx.ua/new-ad', 'user@example.com');
 
         $listing = Listing::where('url', 'https://www.olx.ua/new-ad')->first();
-        $this->assertSame(1500.0, (float) $listing->current_price);
-    }
-
-    public function test_subscribe_does_not_fetch_price_for_existing_listing(): void
-    {
-        Listing::factory()->create(['url' => 'https://www.olx.ua/existing-ad']);
-        $this->scraper->shouldNotReceive('fetchPrice');
-        Mail::fake();
-
-        $this->service->subscribe('https://www.olx.ua/existing-ad', 'user@example.com');
+        $this->assertNull($listing->current_price);
     }
 
     public function test_subscribe_sends_verification_email_for_new_subscription(): void
     {
-        /** @var Expectation $expectation */
-        $expectation = $this->scraper->shouldReceive('fetchPrice');
-        $expectation->once()->andReturn(null);
         Mail::fake();
 
         $this->service->subscribe('https://www.olx.ua/new-ad', 'user@example.com');
@@ -82,7 +62,6 @@ class SubscriptionServiceTest extends TestCase
     {
         $listing = Listing::factory()->create();
         Subscription::factory()->create(['listing_id' => $listing->id, 'email' => 'user@example.com']);
-        $this->scraper->shouldNotReceive('fetchPrice');
         Mail::fake();
 
         $this->service->subscribe($listing->url, 'user@example.com');
@@ -94,7 +73,6 @@ class SubscriptionServiceTest extends TestCase
     {
         $listing = Listing::factory()->create();
         $existing = Subscription::factory()->create(['listing_id' => $listing->id, 'email' => 'user@example.com']);
-        $this->scraper->shouldNotReceive('fetchPrice');
         Mail::fake();
 
         $returned = $this->service->subscribe($listing->url, 'user@example.com');
@@ -105,6 +83,8 @@ class SubscriptionServiceTest extends TestCase
 
     public function test_verify_sets_verified_at_for_valid_token(): void
     {
+        Event::fake();
+
         $subscription = Subscription::factory()->create();
 
         $this->service->verify($subscription->token);
@@ -112,8 +92,21 @@ class SubscriptionServiceTest extends TestCase
         $this->assertNotNull($subscription->fresh()->verified_at);
     }
 
+    public function test_verify_dispatches_subscription_verified_event(): void
+    {
+        Event::fake();
+
+        $subscription = Subscription::factory()->create();
+
+        $this->service->verify($subscription->token);
+
+        Event::assertDispatched(SubscriptionVerified::class, static fn (SubscriptionVerified $event): bool => $event->subscription->is($subscription));
+    }
+
     public function test_verify_is_idempotent_for_already_verified_subscription(): void
     {
+        Event::fake();
+
         $subscription = Subscription::factory()->verified()->create();
         $originalVerifiedAt = $subscription->verified_at->toDateTimeString();
 
@@ -122,6 +115,7 @@ class SubscriptionServiceTest extends TestCase
         $this->service->verify($subscription->token);
 
         $this->assertSame($originalVerifiedAt, $subscription->fresh()->verified_at->toDateTimeString());
+        Event::assertNotDispatched(SubscriptionVerified::class);
     }
 
     public function test_verify_throws_for_invalid_token(): void
@@ -129,5 +123,24 @@ class SubscriptionServiceTest extends TestCase
         $this->expectException(ModelNotFoundException::class);
 
         $this->service->verify('non-existent-token');
+    }
+
+    public function test_unsubscribe_soft_deletes_subscription_for_valid_token(): void
+    {
+        Bus::fake();
+
+        $subscription = Subscription::factory()->create();
+
+        $this->service->unsubscribe($subscription->token);
+
+        $this->assertSoftDeleted($subscription);
+        Bus::assertDispatched(SendUnsubscribedMail::class, static fn (SendUnsubscribedMail $job): bool => $job->email === $subscription->email);
+    }
+
+    public function test_unsubscribe_throws_for_invalid_token(): void
+    {
+        $this->expectException(ModelNotFoundException::class);
+
+        $this->service->unsubscribe('non-existent-token');
     }
 }

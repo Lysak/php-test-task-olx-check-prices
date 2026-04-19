@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Listing;
+use App\Models\Subscription;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -16,15 +17,18 @@ class PriceChangedMail extends Mailable implements ShouldQueue
 
     public function __construct(
         public readonly Listing $listing,
-        public readonly float $oldPrice,
+        public readonly ?float $oldPrice,
         public readonly float $newPrice,
+        public readonly Subscription $subscription,
     ) {}
 
     public function envelope(): Envelope
     {
-        return new Envelope(
-            subject: "Ціна змінилась: {$this->listing->title}",
-        );
+        $subject = $this->oldPrice === null
+            ? "Поточна ціна: {$this->listing->title}"
+            : "Ціна змінилась: {$this->listing->title}";
+
+        return new Envelope(subject: $subject);
     }
 
     public function content(): Content

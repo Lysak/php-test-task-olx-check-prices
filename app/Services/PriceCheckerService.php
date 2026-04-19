@@ -35,6 +35,8 @@ final readonly class PriceCheckerService
             $listing->update(['current_price' => $newPrice, 'last_checked_at' => now()]);
             $listing->priceHistories()->create(['price' => $newPrice, 'recorded_at' => now()]);
 
+            event(new PriceChanged($listing, null, $newPrice));
+
             return;
         }
 
