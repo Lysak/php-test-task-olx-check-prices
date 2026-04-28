@@ -7,6 +7,7 @@ use App\Services\PriceCheckerService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * make app-bash
@@ -16,26 +17,22 @@ use Illuminate\Console\Command;
 #[Description('Check OLX listing prices for all actively subscribed listings')]
 class CheckPricesCommand extends Command
 {
+    private const int BATCH_SIZE = 40;
+
     public function handle(PriceCheckerService $priceCheckerService): int
     {
-        $listings = Listing::active()->whereHas(
-            'subscriptions',
-            static fn ($query) => $query->whereNotNull('verified_at'),
-        )->get();
+        $this->info('Checking prices for active listings...');
 
-        if ($listings->isEmpty()) {
-            $this->info('No active subscriptions found.');
+        $found = false;
 
-            return self::SUCCESS;
-        }
+        Listing::active()
+            ->whereHas('subscriptions', static fn ($query) => $query->whereNotNull('verified_at'))
+            ->chunkById(self::BATCH_SIZE, static function (Collection $listings) use ($priceCheckerService, &$found): void {
+                $found = true;
+                $listings->each(static fn (Listing $listing) => $priceCheckerService->check($listing));
+            });
 
-        $this->info("Checking prices for {$listings->count()} listing(s)...");
-
-        $listings->each(static function (Listing $listing) use ($priceCheckerService): void {
-            $priceCheckerService->check($listing);
-        });
-
-        $this->info('Done.');
+        $this->info($found ? 'Done.' : 'No active listings found.');
 
         return self::SUCCESS;
     }

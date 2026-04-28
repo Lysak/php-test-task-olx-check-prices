@@ -3,12 +3,12 @@
 
 Ви підписались на відстеження ціни оголошення на OLX.
 
-@if($subscription->listing->title)
-**{{ $subscription->listing->title }}**
+@if($listing->title)
+**{{ $listing->title }}**
 @endif
 
-@if($subscription->listing->current_price)
-Поточна ціна: **{{ number_format((float) $subscription->listing->current_price, 0, '.', ' ') }} грн**
+@if($listing->current_price)
+Поточна ціна: **{{ number_format((float) $listing->current_price, 0, '.', ' ') }} грн**
 @endif
 
 Натисніть кнопку нижче, щоб підтвердити підписку та почати отримувати сповіщення про зміну ціни.

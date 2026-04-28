@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Models\Listing;
 use App\Models\Subscription;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,9 +15,13 @@ class VerificationMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
+    public Listing $listing;
+
     public function __construct(
         public readonly Subscription $subscription,
-    ) {}
+    ) {
+        $this->listing = $subscription->listing;
+    }
 
     public function envelope(): Envelope
     {

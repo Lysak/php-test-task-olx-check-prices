@@ -10,6 +10,7 @@ use App\Mail\VerificationMail;
 use App\Models\Listing;
 use App\Models\Subscription;
 use App\Services\Results\VerifySubscriptionResult;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -22,12 +23,19 @@ final readonly class SubscriptionService
 
     public function subscribe(string $url, string $email): Subscription
     {
-        $listing = $this->listing->firstOrCreate(['url' => $url]);
+        /** @noinspection PhpUnhandledExceptionInspection */
+        $subscription = DB::transaction(function () use ($url, $email) {
+            $listing = $this->listing->firstOrCreate(['url' => $url]);
 
-        $subscription = $this->subscription->firstOrCreate(
-            ['listing_id' => $listing->id, 'email' => $email],
-            ['token' => Str::uuid()->toString()],
-        );
+            $subscription = $this->subscription->firstOrCreate(
+                ['listing_id' => $listing->id, 'email' => $email],
+                ['token' => Str::uuid()->toString()],
+            );
+
+            $subscription->setRelation('listing', $listing);
+
+            return $subscription;
+        });
 
         if ($subscription->wasRecentlyCreated) {
             Mail::to($email)->queue(new VerificationMail($subscription));
